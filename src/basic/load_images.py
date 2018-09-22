@@ -8,6 +8,7 @@ def read_image(file_path, flags=cv2.IMREAD_COLOR):
 
 
 def show_image(img, image_name='Image'):
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     plt.imshow(img)
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
@@ -18,7 +19,15 @@ def show_images(images):
     i = 1
     for img in images:
         fig.add_subplot(1, len(images), i)
-        plt.imshow(img)
+        if len(img.shape) > 2:
+            try:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            except Exception:
+                pass
+            plt.imshow(img)
+        else:
+            c_map = 'gray'
+            plt.imshow(img, cmap=c_map)
         i += 1
     plt.xticks([]), plt.yticks([])
     plt.show()
