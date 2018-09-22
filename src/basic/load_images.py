@@ -14,11 +14,15 @@ def show_image(img, image_name='Image'):
     plt.show()
 
 
-def show_images(images):
-    fig = plt.figure(figsize=(1, len(images)))
+def show_images(images, rows=None, cols=None):
+    if rows is None:
+        rows = 1
+    if cols is None:
+        cols = len(images)
+    fig = plt.figure(figsize=(rows, cols))
     i = 1
     for img in images:
-        fig.add_subplot(1, len(images), i)
+        fig.add_subplot(rows, cols, i)
         if len(img.shape) > 2:
             try:
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

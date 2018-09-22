@@ -1,8 +1,10 @@
 from basic import draw_images
 from basic import load_images
 import numpy
+import os
 
-img = load_images.read_image('basic/images/image1.jpeg')
+path = '{0}/../../images/image1.jpeg'.format(os.path.dirname(os.path.abspath(__file__)))
+img = load_images.read_image(path)
 img = draw_images.draw_line(img, 0, 0, 300, 300, 0, 255, 0, 5)
 img = draw_images.draw_circle(img, 400, 400, 30, 255, 0, 0, 1)
 img = draw_images.draw_rectangle(img, 250, 250, 300, 300, 0, 0, 255, 3)

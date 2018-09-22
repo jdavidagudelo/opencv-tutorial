@@ -1,7 +1,9 @@
 import cv2
 from basic import load_images
+import os
 
-img = load_images.read_image('basic/images/convexity.jpg')
+path = '{0}/../../images/convexity.jpg'.format(os.path.dirname(os.path.abspath(__file__)))
+img = load_images.read_image(path)
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 ret, thresh = cv2.threshold(img_gray, 127, 255, 0)
 z, contours, hierarchy = cv2.findContours(thresh, 2, 1)

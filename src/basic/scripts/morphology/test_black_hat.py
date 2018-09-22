@@ -1,7 +1,9 @@
 from basic import load_images
 from basic import morphological_transformations, filtering_operations
+import os
 
-img = load_images.read_image('basic/images/image1.jpeg')
+path = '{0}/../../images/image1.jpeg'.format(os.path.dirname(os.path.abspath(__file__)))
+img = load_images.read_image(path)
 noisy = filtering_operations.add_noise_to_image(img, 0.05)
 
 filtered = morphological_transformations.black_hat(img)

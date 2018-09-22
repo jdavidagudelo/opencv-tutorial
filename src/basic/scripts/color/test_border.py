@@ -1,9 +1,11 @@
 import cv2
 from matplotlib import pyplot as plt
+import os
 
+path = '{0}/../../images/image1.jpeg'.format(os.path.dirname(os.path.abspath(__file__)))
 BLUE = [255, 0, 0]
 
-img1 = cv2.imread('basic/images/image1.jpeg')
+img1 = cv2.imread(path)
 
 replicate = cv2.copyMakeBorder(img1, 10, 10, 10, 10, cv2.BORDER_REPLICATE)
 reflect = cv2.copyMakeBorder(img1, 10, 10, 10, 10, cv2.BORDER_REFLECT)

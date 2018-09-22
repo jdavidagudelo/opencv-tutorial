@@ -1,9 +1,13 @@
 import cv2
 import numpy as np
 from basic import load_images
+import os
 
-A = cv2.imread('basic/images/apple.jpg')
-B = cv2.imread('basic/images/orange.jpg')
+path = '{0}/../../images/apple.jpg'.format(os.path.dirname(os.path.abspath(__file__)))
+path1 = '{0}/../../images/orange.jpg'.format(os.path.dirname(os.path.abspath(__file__)))
+
+A = cv2.imread(path)
+B = cv2.imread(path1)
 
 cols = None
 # generate Gaussian pyramid for A
