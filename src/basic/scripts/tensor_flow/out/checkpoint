@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/jdavidagudelo/Documents/opencv-tutorial/src/basic/scripts/tensor_flow/out/test.tf"
+all_model_checkpoint_paths: "/home/jdavidagudelo/Documents/opencv-tutorial/src/basic/scripts/tensor_flow/out/test.tf"
