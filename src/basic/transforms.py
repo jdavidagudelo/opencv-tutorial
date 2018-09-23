@@ -64,16 +64,17 @@ def get_hough_lines(img, min_value, max_value, aperture_size, rho=1, theta=np.pi
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, min_value, max_value, apertureSize=aperture_size)
     lines = cv2.HoughLines(edges, rho, theta, threshold)
-    for rho, theta in lines[0]:
-        a = np.cos(theta)
-        b = np.sin(theta)
-        x0 = a * rho
-        y0 = b * rho
-        x1 = int(x0 + 1000 * (-b))
-        y1 = int(y0 + 1000 * a)
-        x2 = int(x0 - 1000 * (-b))
-        y2 = int(y0 - 1000 * a)
-        img = cv2.line(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    for line in lines:
+        for rho, theta in line:
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * a)
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * a)
+            img = cv2.line(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     return img
 
 
@@ -136,3 +137,5 @@ def water_shed_images(img):
     markers = cv2.watershed(img, markers)
     img[markers == -1] = [255, 0, 0]
     return img
+
+

@@ -29,3 +29,11 @@ def add_noise_to_image(img, prob=0.5):
     noisy = img.copy()
     noisy[rnd < prob] = numpy.random.randint(255)
     return noisy
+
+
+def de_noise_image(img, h, h_color, template_window_size, search_window_size):
+    return cv2.fastNlMeansDenoisingColored(img, None, h, h_color, template_window_size, search_window_size)
+
+
+def in_paint_image(img, mask):
+    return cv2.inpaint(img, mask, 3, cv2.INPAINT_TELEA)

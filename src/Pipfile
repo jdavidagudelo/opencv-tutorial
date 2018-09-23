@@ -11,6 +11,7 @@ numpy = "*"
 opencv-python = "*"
 matplotlib = "*"
 ipython = "*"
+tensorflow = "*"
 
 [requires]
 python_version = "3.6"
