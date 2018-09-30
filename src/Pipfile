@@ -12,6 +12,13 @@ opencv-python = "*"
 matplotlib = "*"
 ipython = "*"
 tensorflow = "*"
+torch = "*"
+torchvision = "*"
+jupyter = "*"
+scikit-learn = "*"
+pandas = "*"
+seaborn = "*"
+xgboost = "*"
 
 [requires]
 python_version = "3.6"

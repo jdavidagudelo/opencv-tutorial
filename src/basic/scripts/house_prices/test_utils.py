@@ -7,7 +7,7 @@ file_names = [path]
 defaults = [['0.0']] * 81
 
 
-columns_names = [
+column_names = [
     'Id', 'MSSubClass',
     'MSZoning', 'LotFrontage', 'LotArea', 'Street', 'Alley', 'LotShape', 'LandContour',
     'Utilities', 'LotConfig', 'LandSlope', 'Neighborhood', 'Condition1', 'Condition2',
@@ -24,43 +24,7 @@ columns_names = [
     'EnclosedPorch', '3SsnPorch', 'ScreenPorch', 'PoolArea', 'PoolQC', 'Fence', 'MiscFeature',
     'MiscVal', 'MoSold', 'YrSold', 'SaleType', 'SaleCondition', 'SalePrice'
 ]
-
-feature_columns, record_defaults = utils.get_default_features_columns_from_csv(file_names, defaults, columns_names)
-
-label = 'SalePrice'
+column_types = utils.get_column_types_from_csv(file_names, defaults, column_names)
+print(column_types)
 
 
-def _parse_line(line):
-    # Decode the line into its fields
-    fields = tf.decode_csv(line, record_defaults=record_defaults)
-
-    # Pack the result into a dictionary
-    features = dict(zip(columns_names, fields))
-    # Separate the label from the features
-    current_label = features.pop(label)
-    return features, current_label
-
-
-def csv_input_fn(csv_path, batch_size):
-    # Create a data_set containing the text lines.
-    data_set = tf.data.TextLineDataset(csv_path).skip(1)
-    # Parse each line.
-    data_set = data_set.map(_parse_line)
-
-    # Shuffle, repeat, and batch the examples.
-    data_set = data_set.shuffle(1000).batch(batch_size)
-
-    # Return the data_set.
-    return data_set
-
-
-#data_set = tf.contrib.data.CsvDataset(file_names, defaults, header=True)
-#data_set = data_set.map(lambda *x: tf.convert_to_tensor(x))
-
-# Build the estimator
-est = tf.estimator.LinearRegressor(feature_columns[:-1])
-# Train the estimator
-batch_size = 100
-model = est.train(
-    steps=1000,
-    input_fn=lambda: csv_input_fn(path, batch_size))
