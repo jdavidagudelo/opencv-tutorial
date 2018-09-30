@@ -20,6 +20,8 @@ pandas = "*"
 seaborn = "*"
 xgboost = "*"
 lightgbm = "*"
+statsmodels = "*"
+plotly = "*"
 
 [requires]
 python_version = "3.6"
