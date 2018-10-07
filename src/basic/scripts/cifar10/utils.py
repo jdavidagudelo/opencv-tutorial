@@ -37,14 +37,16 @@ def convert_to_tfrecord(input_files, output_file):
         for input_file in input_files:
             data_dict = read_pickle_from_file(input_file)
             data = data_dict['data']
-            labels = data_dict['labels']
-            num_entries_in_batch = len(labels)
+            labels = data_dict.get('labels')
+            num_entries_in_batch = len(data)
             for i in range(num_entries_in_batch):
+                feature = {'image': bytes_feature(data[i].tobytes())}
+                if labels is not None:
+                    feature['label'] = int64_feature(labels[i])
+                else:
+                    feature['label'] = int64_feature(0)
                 example = tf.train.Example(features=tf.train.Features(
-                    feature={
-                        'image': bytes_feature(data[i].tobytes()),
-                        'label': int64_feature(labels[i])
-                    }))
+                    feature=feature))
                 record_writer.write(example.SerializeToString())
 
 

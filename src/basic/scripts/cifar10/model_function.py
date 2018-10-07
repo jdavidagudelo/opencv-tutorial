@@ -32,8 +32,8 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
           A EstimatorSpec object.
         """
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-        weight_decay = params.weight_decay
-        momentum = params.momentum
+        weight_decay = params.get('weight_decay')
+        momentum = params.get('momentum')
 
         tower_features = features
         tower_labels = labels
@@ -44,7 +44,7 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
         # channels first (NCHW) is normally optimal on GPU and channels last (NHWC)
         # on CPU. The exception is Intel MKL on CPU which is optimal with
         # channels_last.
-        data_format = params.data_format
+        data_format = params.get('data_format')
         if not data_format:
             if num_gpus == 0:
                 data_format = 'channels_last'
@@ -74,12 +74,15 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
             with tf.variable_scope('resnet', reuse=bool(i != 0)):
                 with tf.name_scope('tower_%d' % i) as name_scope:
                     with tf.device(device_setter):
+                        current_labels = None if tower_labels is None else tower_labels[i]
                         loss, gradvars, preds = _tower_fn(
-                            is_training, weight_decay, tower_features[i], tower_labels[i],
-                            data_format, params.num_layers, params.batch_norm_decay,
-                            params.batch_norm_epsilon)
-                        tower_losses.append(loss)
-                        tower_gradvars.append(gradvars)
+                            is_training, weight_decay, tower_features[i], current_labels,
+                            data_format, params.get('num_layers'), params.get('batch_norm_decay'),
+                            params.get('batch_norm_epsilon'))
+                        if loss is not None:
+                            tower_losses.append(loss)
+                        if gradvars is not None:
+                            tower_gradvars.append(gradvars)
                         tower_preds.append(preds)
                         if i == 0:
                             # Only trigger batch_norm moving mean and variance update from
@@ -113,12 +116,12 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
             # Suggested learning rate scheduling from
             # https://github.com/ppwwyyxx/tensorpack/blob/master/examples/ResNet/cifar10-resnet.py#L155
             num_batches_per_epoch = Cifar10DataSet.num_examples_per_epoch(
-                'train') // (params.train_batch_size * num_workers)
+                'train') // (params.get('train_batch_size') * num_workers)
             boundaries = [
                 num_batches_per_epoch * x
                 for x in np.array([82, 123, 300], dtype=np.int64)
             ]
-            staged_lr = [params.learning_rate * x for x in [1, 0.1, 0.01, 0.002]]
+            staged_lr = [params.get('learning_rate') * x for x in [1, 0.1, 0.01, 0.002]]
 
             learning_rate = tf.train.piecewise_constant(tf.train.get_global_step(),
                                                         boundaries, staged_lr)
@@ -126,7 +129,7 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
             loss = tf.reduce_mean(tower_losses, name='loss')
 
             examples_sec_hook = ExamplesPerSecondHook(
-                params.train_batch_size, every_n_steps=10)
+                params.get('train_batch_size'), every_n_steps=10)
 
             tensors_to_log = {'learning_rate': learning_rate, 'loss': loss}
 
@@ -138,19 +141,21 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
             optimizer = tf.train.MomentumOptimizer(
                 learning_rate=learning_rate, momentum=momentum)
 
-            if params.sync:
+            if params.get('sync'):
                 optimizer = tf.train.SyncReplicasOptimizer(
                     optimizer, replicas_to_aggregate=num_workers)
-                sync_replicas_hook = optimizer.make_session_run_hook(params.is_chief)
+                sync_replicas_hook = optimizer.make_session_run_hook(params.get('is_chief'))
                 train_hooks.append(sync_replicas_hook)
 
             # Create single grouped train op
-            train_op = [
-                optimizer.apply_gradients(
-                    gradvars, global_step=tf.train.get_global_step())
-            ]
-            train_op.extend(update_ops)
-            train_op = tf.group(*train_op)
+            train_op = None
+            if gradvars:
+                train_op = [
+                    optimizer.apply_gradients(
+                        gradvars, global_step=tf.train.get_global_step())
+                ]
+                train_op.extend(update_ops)
+                train_op = tf.group(*train_op)
 
             predictions = {
                 'classes':
@@ -158,11 +163,15 @@ def get_model_fn(num_gpus, variable_strategy, num_workers):
                 'probabilities':
                     tf.concat([p['probabilities'] for p in tower_preds], axis=0)
             }
-            stacked_labels = tf.concat(labels, axis=0)
-            metrics = {
-                'accuracy':
-                    tf.metrics.accuracy(stacked_labels, predictions['classes'])
-            }
+            if mode == tf.estimator.ModeKeys.PREDICT:
+                return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+            metrics = {}
+            if labels is not None:
+                stacked_labels = tf.concat(labels, axis=0)
+                metrics = {
+                    'accuracy':
+                        tf.metrics.accuracy(stacked_labels, predictions['classes'])
+                }
 
         return tf.estimator.EstimatorSpec(
             mode=mode,
@@ -206,17 +215,20 @@ def _tower_fn(is_training, weight_decay, feature, label, data_format,
         'probabilities': tf.nn.softmax(logits)
     }
 
-    tower_loss = tf.losses.sparse_softmax_cross_entropy(
-        logits=logits, labels=label)
-    tower_loss = tf.reduce_mean(tower_loss)
+    tower_loss = None
+    model_params = None
+    if label is not None:
+        tower_loss = tf.losses.sparse_softmax_cross_entropy(
+            logits=logits, labels=label)
+        tower_loss = tf.reduce_mean(tower_loss)
+        model_params = tf.trainable_variables()
+        tower_loss += weight_decay * tf.add_n(
+            [tf.nn.l2_loss(v) for v in model_params])
 
-    model_params = tf.trainable_variables()
-    tower_loss += weight_decay * tf.add_n(
-        [tf.nn.l2_loss(v) for v in model_params])
+        tower_grad = tf.gradients(tower_loss, model_params)
+        model_params = zip(tower_grad, model_params)
 
-    tower_grad = tf.gradients(tower_loss, model_params)
-
-    return tower_loss, zip(tower_grad, model_params), tower_pred
+    return tower_loss, model_params, tower_pred
 
 
 def input_fn(data_dir,
@@ -240,7 +252,8 @@ def input_fn(data_dir,
         use_distortion = subset == 'train' and use_distortion_for_training
         from basic.scripts.cifar10.data_set import Cifar10DataSet
         dataset = Cifar10DataSet(data_dir, subset, use_distortion)
-        image_batch, label_batch = dataset.make_batch(batch_size)
+
+        image_batch, label_batch = dataset.make_batch(batch_size, repeat=subset != 'validation')
         if num_shards <= 1:
             # No GPU available or only 1 GPU.
             return [image_batch], [label_batch]
@@ -251,6 +264,7 @@ def input_fn(data_dir,
         # number of epochs, but our dataset repeats forever.
         image_batch = tf.unstack(image_batch, num=batch_size, axis=0)
         label_batch = tf.unstack(label_batch, num=batch_size, axis=0)
+
         feature_shards = [[] for _ in range(num_shards)]
         label_shards = [[] for _ in range(num_shards)]
         for i in range(batch_size):
@@ -262,29 +276,31 @@ def input_fn(data_dir,
         return feature_shards, label_shards
 
 
-def get_estimator_data(data_dir, num_gpus, variable_strategy, run_config, hparams, use_distortion_for_training=True):
+def get_estimator_data(data_dir, num_gpus, variable_strategy,
+                       run_config, hparams, use_distortion_for_training=True,
+                       subset='eval'):
     train_input_fn = functools.partial(
         input_fn,
         data_dir,
         subset='train',
         num_shards=num_gpus,
-        batch_size=hparams.train_batch_size,
+        batch_size=hparams.get('train_batch_size'),
         use_distortion_for_training=use_distortion_for_training)
 
     eval_input_fn = functools.partial(
         input_fn,
         data_dir,
-        subset='eval',
-        batch_size=hparams.eval_batch_size,
+        subset=subset,
+        batch_size=hparams.get('eval_batch_size'),
         num_shards=num_gpus)
 
     num_eval_examples = Cifar10DataSet.num_examples_per_epoch('eval')
-    if num_eval_examples % hparams.eval_batch_size != 0:
+    if num_eval_examples % hparams.get('eval_batch_size') != 0:
         raise ValueError(
             'validation set size must be multiple of eval_batch_size')
 
-    train_steps = hparams.train_steps
-    eval_steps = num_eval_examples // hparams.eval_batch_size
+    train_steps = hparams.get('train_steps')
+    eval_steps = num_eval_examples // hparams.get('eval_batch_size')
 
     classifier = tf.estimator.Estimator(
         model_fn=get_model_fn(num_gpus, variable_strategy,
