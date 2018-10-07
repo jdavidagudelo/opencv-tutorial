@@ -7,6 +7,18 @@ from sklearn.model_selection import train_test_split
 
 
 def generate_train_data(data_dir, data_csv, output_dir, limit=None, test_size=0.2):
+    """
+    Stores pickled dictionary from folder with images.
+    This method splits the csv data in a train and test data sets.
+    :param data_dir: folder with images.
+    :param data_csv: csv file with columns filename and label. The column filename corresponds to
+    the name of the file in the data_dir folder and the label column corresponds to the label
+    associated to the corresponding file.
+    :param output_dir: the folder in wich the data will be stored.
+    :param limit: max number of values to process.
+    :param test_size: the percentage of the data in the csv document to use for test data.
+    :return:
+    """
     data = pd.read_csv(data_csv)
     if limit is not None:
         data = data[:limit]
