@@ -6,11 +6,11 @@ import pickle
 from sklearn.model_selection import train_test_split
 
 
-def generate_train_data(data_dir, data_csv, output_dir, limit=None):
+def generate_train_data(data_dir, data_csv, output_dir, limit=None, test_size=0.2):
     data = pd.read_csv(data_csv)
     if limit is not None:
         data = data[:limit]
-    x_train, x_test, y_train, y_test = train_test_split(data.filename, data.label, test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(data.filename, data.label, test_size=test_size)
     save_data(data_dir, output_dir, x_train, y_train, 'train')
     save_data(data_dir, output_dir, x_test, y_test, 'test')
 
